@@ -5,6 +5,8 @@
 <title>Ultimate Productivity System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<link rel="manifest" href="manifest.json">
+
 <style>
 body {
     font-family: Arial;
@@ -67,6 +69,7 @@ textarea { height: 100px; }
 .box.active { background: green; }
 </style>
 </head>
+
 <body>
 
 <h1>Ultimate Productivity</h1>
@@ -240,6 +243,12 @@ loadJournal();
 renderHabits();
 renderHeatmap();
 
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
 </script>
 
 </body>
