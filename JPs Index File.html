@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Ultimate Productivity System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    padding: 20px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+:root {
+    --bg: #f4f6f9;
+    --card: white;
+    --text: black;
+}
+
+.dark {
+    --bg: #121212;
+    --card: #1e1e1e;
+    --text: white;
+}
+
+h1 { text-align: center; }
+
+.card {
+    background: var(--card);
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 8px;
+}
+
+button {
+    padding: 6px 10px;
+    margin-top: 5px;
+    cursor: pointer;
+}
+
+input, select, textarea {
+    padding: 6px;
+    width: 100%;
+    margin-top: 5px;
+}
+
+textarea { height: 100px; }
+
+.habit { margin-top: 8px; }
+
+.heatmap {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    margin-top: 10px;
+}
+
+.box {
+    width: 100%;
+    padding-top: 100%;
+    background: #ddd;
+}
+
+.box.active { background: green; }
+</style>
+</head>
+<body>
+
+<h1>Ultimate Productivity</h1>
+<button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+
+<div class="card">
+<h2>Daily Journal</h2>
+<textarea id="journal"></textarea>
+</div>
+
+<div class="card">
+<h2>Add Habit</h2>
+<input type="text" id="habitInput" placeholder="Habit name">
+<select id="frequency">
+<option value="daily">Daily</option>
+<option value="weekdays">Weekdays</option>
+</select>
+<button onclick="addHabit()">Add Habit</button>
+</div>
+
+<div class="card">
+<h2>Today's Habits</h2>
+<div id="habitList"></div>
+</div>
+
+<div class="card">
+<h2>Monthly Progress</h2>
+<div class="heatmap" id="heatmap"></div>
+</div>
+
+<div class="card">
+<h2>Data</h2>
+<button onclick="exportData()">Export Backup</button>
+<input type="file" onchange="importData(event)">
+</div>
+
+<script>
+
+const today = new Date().toISOString().split("T")[0];
+const todayDay = new Date().getDay();
+
+function getData() {
+    return JSON.parse(localStorage.getItem("productivityData")) || {
+        habits: [],
+        journal: {},
+        completions: {}
+    };
+}
+
+function saveData(data) {
+    localStorage.setItem("productivityData", JSON.stringify(data));
+}
+
+function loadJournal() {
+    const data = getData();
+    document.getElementById("journal").value = data.journal[today] || "";
+}
+
+document.getElementById("journal").addEventListener("input", () => {
+    const data = getData();
+    data.journal[today] = document.getElementById("journal").value;
+    saveData(data);
+});
+
+function addHabit() {
+    const name = document.getElementById("habitInput").value.trim();
+    const frequency = document.getElementById("frequency").value;
+    if (!name) return;
+
+    const data = getData();
+    data.habits.push({ name, frequency, streak: 0, last: null });
+    saveData(data);
+    document.getElementById("habitInput").value = "";
+    renderHabits();
+}
+
+function shouldShow(habit) {
+    if (habit.frequency === "daily") return true;
+    if (habit.frequency === "weekdays")
+        return todayDay !== 0 && todayDay !== 6;
+    return true;
+}
+
+function completeHabit(index) {
+    const data = getData();
+    const habit = data.habits[index];
+
+    if (habit.last === today) return;
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const y = yesterday.toISOString().split("T")[0];
+
+    if (habit.last === y) habit.streak++;
+    else habit.streak = 1;
+
+    habit.last = today;
+
+    if (!data.completions[today]) data.completions[today] = 0;
+    data.completions[today]++;
+
+    saveData(data);
+    renderHabits();
+    renderHeatmap();
+}
+
+function renderHabits() {
+    const data = getData();
+    const list = document.getElementById("habitList");
+    list.innerHTML = "";
+
+    data.habits.forEach((habit, i) => {
+        if (!shouldShow(habit)) return;
+
+        const div = document.createElement("div");
+        div.className = "habit";
+
+        div.innerHTML = `
+        <strong>${habit.name}</strong><br>
+        🔥 Streak: ${habit.streak} days<br>
+        <button onclick="completeHabit(${i})">Complete Today</button>
+        `;
+
+        list.appendChild(div);
+    });
+}
+
+function renderHeatmap() {
+    const data = getData();
+    const heatmap = document.getElementById("heatmap");
+    heatmap.innerHTML = "";
+
+    for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const d = date.toISOString().split("T")[0];
+
+        const box = document.createElement("div");
+        box.className = "box";
+
+        if (data.completions[d]) box.classList.add("active");
+
+        heatmap.appendChild(box);
+    }
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle("dark");
+}
+
+function exportData() {
+    const data = getData();
+    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "productivity_backup.json";
+    a.click();
+}
+
+function importData(event) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    reader.onload = function() {
+        localStorage.setItem("productivityData", reader.result);
+        location.reload();
+    };
+    reader.readAsText(file);
+}
+
+loadJournal();
+renderHabits();
+renderHeatmap();
+
+</script>
+
+</body>
+</html>
